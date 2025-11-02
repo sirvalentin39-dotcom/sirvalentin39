@@ -49,9 +49,8 @@
             font-size: 24px;
         }
 
-        /* Кнопка завантаження */
-        #downloadBtn {
-            background-color: #007bff; /* Яскраво-синій колір */
+        /* Базові стилі для кнопок */
+        .btn {
             color: white;
             border: none;
             padding: 15px 25px;
@@ -61,22 +60,47 @@
             cursor: pointer;
             transition: background-color 0.3s ease, transform 0.1s ease;
             width: 100%;
+            text-decoration: none; /* для посилань */
+            display: inline-block; /* для посилань */
+            box-sizing: border-box;
         }
 
-        /* Ефект при наведенні на кнопку */
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Кнопка завантаження */
+        #downloadBtn {
+            background-color: #007bff; /* Яскраво-синій колір */
+        }
+
         #downloadBtn:hover {
             background-color: #0056b3;
         }
 
-        /* Ефект при натисканні на кнопку */
-        #downloadBtn:active {
-            transform: scale(0.98);
-        }
-
-        /* Стиль для неактивної кнопки */
         #downloadBtn:disabled {
             background-color: #a0a0a0;
             cursor: not-allowed;
+        }
+
+        /* Секція, що з'являється після завантаження */
+        #postDownloadSection {
+            display: none; /* По замовчуванню приховано */
+            margin-top: 20px;
+        }
+        
+        #postDownloadSection p {
+            color: #4CAF50;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        /* Кнопка "Повернутися в Telegram" */
+        #returnBtn {
+            background-color: #28a745; /* Зелений колір */
+        }
+        #returnBtn:hover {
+            background-color: #218838;
         }
 
     </style>
@@ -85,24 +109,30 @@
     <div class="container">
         <div class="card">
             <h1>Завантажувач MCAddon</h1>
-            <button id="downloadBtn">Завантажити .mcaddon файл</button>
+            
+            <!-- Основна кнопка -->
+            <button id="downloadBtn" class="btn">Завантажити .mcaddon файл</button>
+            
+            <!-- Секція, що з'явиться після початку завантаження в браузері -->
+            <div id="postDownloadSection">
+                <p>✅ Завантаження розпочато!</p>
+                <a href="tg://resolve" id="returnBtn" class="btn">Повернутися в Telegram</a>
+            </div>
         </div>
     </div>
 
     <script>
         // --- JAVASCRIPT ЛОГІКА ---
 
-        // Знаходимо кнопку за її ID
         const downloadBtn = document.getElementById('downloadBtn');
-
+        const postDownloadSection = document.getElementById('postDownloadSection');
+        
         /**
-         * Функція для генерації випадкового тексту заданої довжини.
-         * @param {number} length - Кількість символів для генерації.
-         * @returns {string} - Випадково згенерований рядок.
+         * Генерує випадковий текст заданої довжини.
          */
         function generateRandomText(length) {
             let result = '';
-            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-= ';
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             const charactersLength = characters.length;
             for (let i = 0; i < length; i++) {
                 result += characters.charAt(Math.floor(Math.random() * charactersLength));
@@ -111,61 +141,79 @@
         }
 
         /**
-         * Функція для ініціалізації завантаження файлу.
-         * @param {Blob} blob - Об'єкт Blob, який потрібно завантажити.
-         * @param {string} filename - Ім'я файлу для завантаження.
+         * Ініціює завантаження файлу (створює тимчасове посилання і клікає по ньому).
          */
         function triggerDownload(blob, filename) {
-            // Створюємо тимчасове посилання для завантаження
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            
             a.href = url;
-            a.download = filename; // Встановлюємо ім'я файлу
-            
-            // Додаємо посилання до документа, імітуємо клік і видаляємо
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            
-            // Звільняємо пам'ять, видаляючи створений URL
             URL.revokeObjectURL(url);
         }
 
-        // Додаємо обробник події "click" до кнопки
-        downloadBtn.addEventListener('click', async () => {
-            // Робимо кнопку неактивною, щоб уникнути повторних натискань
+        /**
+         * Основна асинхронна функція для створення та завантаження .mcaddon файлу.
+         */
+        async function createAndDownloadFile() {
+            // Блокуємо кнопку та змінюємо текст
             downloadBtn.disabled = true;
             downloadBtn.textContent = 'Генерація...';
-            
+
             try {
-                // 1. Створюємо новий екземпляр JSZip
                 const zip = new JSZip();
-
-                // 2. Створюємо папку 'test' всередині архіву
                 const testFolder = zip.folder('test');
-
-                // 3. Генеруємо 3000 випадкових символів
                 const randomContent = generateRandomText(3000);
-
-                // 4. Додаємо текстовий файл з випадковим контентом у папку 'test'
                 testFolder.file('random_text.txt', randomContent);
 
-                // 5. Генеруємо zip-архів асинхронно у форматі blob
                 const content = await zip.generateAsync({ type: 'blob' });
-
-                // 6. Запускаємо завантаження файлу
                 triggerDownload(content, 'my_addon.mcaddon');
+                
+                // Після успішного старту завантаження, ховаємо кнопку "Завантажити"
+                // та показуємо повідомлення і кнопку "Повернутися в Telegram"
+                downloadBtn.style.display = 'none';
+                postDownloadSection.style.display = 'block';
 
             } catch (error) {
                 console.error("Помилка під час створення файлу:", error);
                 alert("Не вдалося створити файл. Будь ласка, спробуйте ще раз.");
-            } finally {
-                // Повертаємо кнопку до початкового стану
+                // У випадку помилки, повертаємо кнопку в початковий стан
                 downloadBtn.disabled = false;
                 downloadBtn.textContent = 'Завантажити .mcaddon файл';
             }
-        });
+        }
+
+        // --- ГОЛОВНА ЛОГІКА ---
+        
+        // Використовуємо window.onload, щоб скрипт спрацював після повного завантаження сторінки
+        window.onload = () => {
+            // 1. Створюємо об'єкт для роботи з параметрами URL
+            const urlParams = new URLSearchParams(window.location.search);
+
+            // 2. Перевіряємо, чи є в URL параметр 'start_download=true'
+            if (urlParams.get('start_download') === 'true') {
+                // Якщо так, це означає, що ми в основному браузері і маємо
+                // автоматично почати завантаження.
+                createAndDownloadFile();
+            } else {
+                // 3. Якщо параметра немає, це перший захід на сторінку (ймовірно, в Telegram).
+                // Налаштовуємо кнопку на перенаправлення в браузер.
+                downloadBtn.addEventListener('click', () => {
+                    // Змінюємо текст на кнопці, щоб користувач розумів, що відбувається
+                    downloadBtn.textContent = 'Перенаправлення...';
+                    downloadBtn.disabled = true;
+                    
+                    // Формуємо нову URL-адресу, додаючи до неї наш параметр
+                    const newUrl = window.location.href.split('?')[0] + '?start_download=true';
+                    
+                    // Перенаправляємо користувача за цією новою адресою.
+                    // Мобільна ОС запропонує відкрити це посилання у зовнішньому браузері.
+                    window.location.href = newUrl;
+                });
+            }
+        };
     </script>
 </body>
 </html>
