@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Завантаження</title>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
     <script src="https://telegram.org/js/telegram-web-app.js"></script> 
 
     <style>
@@ -44,21 +46,36 @@
     </style>
 </head>
 <body>
-    <button id="downloadBtn">Завантажити</button>
+    <button id="downloadBtn">Завантажити .mcaddon</button>
 
     <script>
+        // --- JAVASCRIPT ЛОГІКА ---
+
         const downloadBtn = document.getElementById('downloadBtn');
+        let currentStatus = 'Завантажити .mcaddon'; // Для збереження стану кнопки
 
-        // --- ЛОГІКА ЗАВАНТАЖЕННЯ (ВИКОНУЄТЬСЯ У CHROME) ---
+        // Функція для генерації випадкового тексту (використовувалася у вашому коді)
+        function generateRandomText(length) {
+            let result = '';
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-= ';
+            const charactersLength = characters.length;
+            for (let i = 0; i < length; i++) {
+                result += characters.charAt(Math.floor(Math.random() * charactersLength));
+            }
+            return result;
+        }
 
-        function triggerDownload(data, filename) {
-            // Генеруємо Blob з вмістом "123"
-            const blob = new Blob([data], { type: 'text/plain' });
+        /**
+         * Функція для ініціалізації завантаження файлу.
+         * @param {Blob} blob - Об'єкт Blob.
+         * @param {string} filename - Ім'я файлу.
+         */
+        function triggerDownload(blob, filename) {
             const url = URL.createObjectURL(blob);
-
             const a = document.createElement('a');
+            
             a.href = url;
-            a.download = filename; 
+            a.download = filename;
             
             // Ініціювання завантаження
             document.body.appendChild(a);
@@ -66,50 +83,73 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            // АВТОМАТИЧНЕ ПОВЕРНЕННЯ В TELEGRAM
+            // !!! АВТОМАТИЧНЕ ПОВЕРНЕННЯ В TELEGRAM !!!
             setTimeout(() => {
-                // Використовуємо deep link для повернення
-                window.location.href = 'tg://resolve?domain='; 
+                window.location.href = 'tg://resolve?domain='; // Deep link
             }, 2000); 
         }
 
-        // --- ЛОГІКА ПЕРЕХОДУ (ВИКОНУЄТЬСЯ У TWA) ---
+        /**
+         * Функція, яка запускається у ЗОВНІШНЬОМУ БРАУЗЕРІ для генерації та завантаження.
+         */
+        async function initiateExternalDownload() {
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = 'Генерація...';
+            
+            try {
+                // Логіка генерації .mcaddon (з вашого коду)
+                const zip = new JSZip();
+                const testFolder = zip.folder('test');
+                const randomContent = generateRandomText(3000);
+                testFolder.file('random_text.txt', randomContent);
+                const content = await zip.generateAsync({ type: 'blob' });
+
+                downloadBtn.textContent = 'Завантаження...';
+                
+                // Запускаємо завантаження файлу
+                triggerDownload(content, 'my_addon.mcaddon');
+
+            } catch (error) {
+                console.error("Помилка під час створення файлу:", error);
+                downloadBtn.textContent = 'Помилка! Спробувати ще раз';
+                downloadBtn.disabled = false;
+            }
+        }
+
+        // --- ЛОГІКА ВИЗНАЧЕННЯ РЕЖИМУ ТА ДІЇ ---
 
         const urlParams = new URLSearchParams(window.location.search);
-        
-        // Режим 1: Ми у Зовнішньому Браузері (Chrome/Safari) - запускаємо завантаження
-        if (urlParams.get('dl') === 'true') {
-            downloadBtn.textContent = 'Завантаження...';
-            downloadBtn.disabled = true;
-            
-            // Запускаємо завантаження data.txt
-            triggerDownload('123', 'data.txt');
+        const externalParam = 'dl'; // Використовуємо короткий параметр для URL
 
+        // 1. Режим: Ми у Зовнішньому Браузері (Chrome/Safari) - запускаємо завантаження
+        if (urlParams.get(externalParam) === 'true') {
+            downloadBtn.style.display = 'block';
+            initiateExternalDownload();
         } 
-        // Режим 2: Ми у Web App Telegram - ініціюємо перехід
+        // 2. Режим: Ми у Web App Telegram - ініціюємо перехід
         else {
             downloadBtn.addEventListener('click', () => {
                 
                 const currentUrl = window.location.href;
-                const externalUrl = currentUrl.includes('?') ? currentUrl + '&dl=true' : currentUrl + '?dl=true';
+                const externalUrl = currentUrl.includes('?') ? currentUrl + `&${externalParam}=true` : currentUrl + `?${externalParam}=true`;
 
                 downloadBtn.disabled = true;
                 downloadBtn.textContent = 'Перехід у браузер...';
                 
-                // --- НАЙСИЛЬНІШИЙ МЕХАНІЗМ ПЕРЕХОДУ (Intent URI для Android) ---
+                // --- НАЙАГРЕСИВНІШИЙ МЕХАНІЗМ ПЕРЕХОДУ ---
                 
                 const isAndroid = /Android/i.test(navigator.userAgent);
 
                 if (isAndroid) {
-                    // Це має змусити Android відкрити Chrome
-                    const androidIntent = `intent://${window.location.host}${window.location.pathname}?dl=true#Intent;scheme=https;package=com.android.chrome;end`;
+                    // Intent URI (найкращий шанс обійти TWA на Android)
+                    const androidIntent = `intent://${window.location.host}${window.location.pathname}?${externalParam}=true#Intent;scheme=https;package=com.android.chrome;end`;
                     window.location.href = androidIntent;
                 } else {
-                    // Прямий location.href для iOS/інших, щоб викликати системний запит
+                    // Прямий location.href для iOS/інших
                     window.location.href = externalUrl;
                 }
 
-                // Резервна спроба через Telegram API
+                // Резервна спроба через Telegram API (може спрацювати на деяких пристроях)
                 setTimeout(() => {
                     if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
                         window.Telegram.WebApp.openLink(externalUrl);
