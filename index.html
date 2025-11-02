@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Завантажити .mcaddon</title>
     
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <script src="https://telegram.org/js/telegram-web-app.js"></script> 
 
     <style>
         /* --- CSS СТИЛІ (залишаємо без змін) --- */
@@ -45,6 +45,16 @@
             margin-bottom: 20px;
             font-size: 24px;
         }
+        
+        #instruction {
+            color: #d9534f; /* Червоний колір для важливої інструкції */
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: none; /* Приховано за замовчуванням */
+            padding: 10px;
+            border: 1px solid #d9534f;
+            border-radius: 6px;
+        }
 
         #downloadBtn {
             background-color: #007bff; 
@@ -71,7 +81,6 @@
             background-color: #a0a0a0;
             cursor: not-allowed;
         }
-
     </style>
 </head>
 <body>
@@ -79,8 +88,11 @@
         <div class="card">
             <h1>Завантажувач MCAddon</h1>
             <p id="infoText" style="color: #555; font-size: 14px; margin-bottom: 20px;">
-                Натисніть кнопку, щоб відкрити файл у зовнішньому браузері та почати завантаження.
+                Натисніть кнопку. Якщо з'явиться запит, обов'язково виберіть "Відкрити у зовнішньому браузері".
             </p>
+            <div id="instruction">
+                ⚠️ **УВАГА!** Вам потрібно натиснути на **три крапки (⋮)** або кнопку "Відкрити у браузері" у верхньому куті!
+            </div>
             <button id="downloadBtn">Перейти до завантаження</button>
         </div>
     </div>
@@ -90,8 +102,8 @@
 
         const downloadBtn = document.getElementById('downloadBtn');
         const infoText = document.getElementById('infoText');
+        const instructionDiv = document.getElementById('instruction');
 
-        // Важливо: Ця функція тепер просто готує дані.
         function generateRandomText(length) {
             let result = '';
             const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-= ';
@@ -106,16 +118,13 @@
          * Функція, яка запускається у ЗОВНІШНЬОМУ БРАУЗЕРІ для генерації та завантаження.
          */
         async function initiateExternalDownload() {
-            // Ця логіка тепер виконується лише у звичайному браузері (Chrome/Safari)
             try {
                 const zip = new JSZip();
                 const testFolder = zip.folder('test');
                 const randomContent = generateRandomText(3000);
                 testFolder.file('random_text.txt', randomContent);
 
-                // Оновлюємо текст для користувача
                 infoText.textContent = 'Генерація файлу. Зачекайте...';
-                downloadBtn.textContent = 'Завантаження...';
                 
                 const content = await zip.generateAsync({ type: 'blob' });
 
@@ -125,61 +134,69 @@
                 a.href = url;
                 a.download = 'my_addon.mcaddon'; 
                 
+                // Відображаємо кнопку з іншим текстом, щоб користувач бачив, що відбувається
+                downloadBtn.style.display = 'block';
+                downloadBtn.textContent = 'Файл завантажується...';
+                downloadBtn.disabled = true;
+
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
-                infoText.textContent = 'Завантаження почалося! Автоматичне повернення в Telegram...';
+                infoText.textContent = 'Завантаження почалося! Повернення в Telegram...';
                 
                 // !!! КЛЮЧОВИЙ КРОК 3: Повернення у Telegram !!!
-                // Після завантаження, чекаємо 1 секунду і перенаправляємо назад у застосунок Telegram
+                // Після завантаження, чекаємо і перенаправляємо назад у застосунок Telegram
                 setTimeout(() => {
                     // Використовуємо спеціальний deep link для повернення
                     window.location.href = 'tg://resolve?domain='; 
-                }, 1000);
+                }, 1500); // 1.5 секунди
 
             } catch (error) {
                 console.error("Помилка під час створення файлу:", error);
-                infoText.textContent = "Помилка. Не вдалося створити файл.";
+                infoText.textContent = "Помилка! Не вдалося створити файл.";
                 downloadBtn.textContent = 'Спробувати ще раз';
+                downloadBtn.disabled = false;
             }
         }
 
-        // Перевіряємо, чи ми вже у зовнішньому браузері (через параметр URL)
-        // Якщо URL містить '?external=true', ми знаємо, що потрібно запускати генерацію.
+        // 1. Перевірка, чи ми вже у зовнішньому браузері
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('external') === 'true') {
-            // Якщо ми у зовнішньому браузері, приховуємо кнопку і запускаємо генерацію.
+            // Ми у зовнішньому браузері - запускаємо генерацію і завантаження
             downloadBtn.style.display = 'none';
+            instructionDiv.style.display = 'none';
             infoText.style.fontSize = '18px';
             infoText.textContent = 'Підготовка файлу...';
             
-            // Запускаємо генерацію та завантаження!
             initiateExternalDownload();
 
         } else {
-            // Якщо ми у Web App Telegram, додаємо обробник події на кнопку
+            // 2. Ми у Web App Telegram - налаштовуємо перехід
             downloadBtn.addEventListener('click', () => {
-                // !!! КЛЮЧОВИЙ КРОК 2: Відкриття посилання у зовнішньому браузері !!!
                 
-                // 1. Створюємо URL для переходу у зовнішній браузер
-                // Додаємо параметр ?external=true, щоб зовнішній браузер знав, що робити.
+                // URL, який буде відкриватися у зовнішньому браузері
                 const currentUrl = window.location.href;
                 const externalUrl = currentUrl.includes('?') ? currentUrl + '&external=true' : currentUrl + '?external=true';
 
-                // 2. Використовуємо Telegram API для відкриття зовнішнього посилання
-                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
-                    window.Telegram.WebApp.openLink(externalUrl);
-                    
-                    // Оновлюємо статус в Web App Telegram
-                    downloadBtn.disabled = true;
-                    downloadBtn.textContent = 'Перенаправлення...';
-                    infoText.textContent = 'Будь ласка, зачекайте, поки відкриється зовнішній браузер...';
-                } else {
-                    // Якщо Telegram API недоступний (наприклад, звичайний браузер), відкриваємо як звичайно.
-                    window.location.href = externalUrl;
-                }
+                downloadBtn.disabled = true;
+                downloadBtn.textContent = 'Спроба відкрити...';
+                instructionDiv.style.display = 'block'; // Показуємо інструкцію
+                
+                // --- НОВИЙ АГРЕСИВНИЙ МЕТОД ПЕРЕХОДУ ---
+                
+                // Використовуємо window.location.href, який частіше "зриває" InApp браузер
+                // і змушує мобільну ОС запитати користувача про перехід у Chrome.
+                window.location.href = externalUrl;
+
+                // Для резервної надійності, якщо це не спрацює
+                setTimeout(() => {
+                    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
+                        window.Telegram.WebApp.openLink(externalUrl);
+                    }
+                }, 500);
+
             });
         }
     </script>
