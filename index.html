@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Завантажити .mcaddon</title>
+    
+    <!-- Підключення бібліотеки JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <style>
+        /* --- CSS СТИЛІ --- */
+        
+        /* Загальні налаштування для сторінки */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5; /* Світло-сірий фон */
+        }
+
+        /* Головний контейнер, що центрує вміст */
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Картка з контентом */
+        .card {
+            background-color: white;
+            padding: 40px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        /* Заголовок */
+        h1 {
+            color: #1c1e21;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        /* Кнопка завантаження */
+        #downloadBtn {
+            background-color: #007bff; /* Яскраво-синій колір */
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            width: 100%;
+        }
+
+        /* Ефект при наведенні на кнопку */
+        #downloadBtn:hover {
+            background-color: #0056b3;
+        }
+
+        /* Ефект при натисканні на кнопку */
+        #downloadBtn:active {
+            transform: scale(0.98);
+        }
+
+        /* Стиль для неактивної кнопки */
+        #downloadBtn:disabled {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Завантажувач MCAddon</h1>
+            <button id="downloadBtn">Завантажити .mcaddon файл</button>
+        </div>
+    </div>
+
+    <script>
+        // --- JAVASCRIPT ЛОГІКА ---
+
+        // Знаходимо кнопку за її ID
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        /**
+         * Функція для генерації випадкового тексту заданої довжини.
+         * @param {number} length - Кількість символів для генерації.
+         * @returns {string} - Випадково згенерований рядок.
+         */
+        function generateRandomText(length) {
+            let result = '';
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-= ';
+            const charactersLength = characters.length;
+            for (let i = 0; i < length; i++) {
+                result += characters.charAt(Math.floor(Math.random() * charactersLength));
+            }
+            return result;
+        }
+
+        /**
+         * Функція для ініціалізації завантаження файлу.
+         * @param {Blob} blob - Об'єкт Blob, який потрібно завантажити.
+         * @param {string} filename - Ім'я файлу для завантаження.
+         */
+        function triggerDownload(blob, filename) {
+            // Створюємо тимчасове посилання для завантаження
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            
+            a.href = url;
+            a.download = filename; // Встановлюємо ім'я файлу
+            
+            // Додаємо посилання до документа, імітуємо клік і видаляємо
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // Звільняємо пам'ять, видаляючи створений URL
+            URL.revokeObjectURL(url);
+        }
+
+        // Додаємо обробник події "click" до кнопки
+        downloadBtn.addEventListener('click', async () => {
+            // Робимо кнопку неактивною, щоб уникнути повторних натискань
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = 'Генерація...';
+            
+            try {
+                // 1. Створюємо новий екземпляр JSZip
+                const zip = new JSZip();
+
+                // 2. Створюємо папку 'test' всередині архіву
+                const testFolder = zip.folder('test');
+
+                // 3. Генеруємо 3000 випадкових символів
+                const randomContent = generateRandomText(3000);
+
+                // 4. Додаємо текстовий файл з випадковим контентом у папку 'test'
+                testFolder.file('random_text.txt', randomContent);
+
+                // 5. Генеруємо zip-архів асинхронно у форматі blob
+                const content = await zip.generateAsync({ type: 'blob' });
+
+                // 6. Запускаємо завантаження файлу
+                triggerDownload(content, 'my_addon.mcaddon');
+
+            } catch (error) {
+                console.error("Помилка під час створення файлу:", error);
+                alert("Не вдалося створити файл. Будь ласка, спробуйте ще раз.");
+            } finally {
+                // Повертаємо кнопку до початкового стану
+                downloadBtn.disabled = false;
+                downloadBtn.textContent = 'Завантажити .mcaddon файл';
+            }
+        });
+    </script>
+</body>
+</html>
