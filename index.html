@@ -8,6 +8,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script> 
 
     <style>
+        /* Стилі для мінімалістичного інтерфейсу */
         html, body {
             height: 100%;
             margin: 0;
@@ -48,10 +49,10 @@
     <script>
         const downloadBtn = document.getElementById('downloadBtn');
 
-        // --- ЛОГІКА ЗАВАНТАЖЕННЯ (У ЗОВНІШНЬОМУ БРАУЗЕРІ) ---
+        // --- ЛОГІКА ЗАВАНТАЖЕННЯ (ВИКОНУЄТЬСЯ У CHROME) ---
 
         function triggerDownload(data, filename) {
-            // Створення Blob з текстовими даними
+            // Генеруємо Blob з вмістом "123"
             const blob = new Blob([data], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
 
@@ -65,44 +66,42 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            // Автоматичне повернення в Telegram через 2 секунди
+            // АВТОМАТИЧНЕ ПОВЕРНЕННЯ В TELEGRAM
             setTimeout(() => {
-                // Використовуємо deep link для повернення в ТГ
+                // Використовуємо deep link для повернення
                 window.location.href = 'tg://resolve?domain='; 
             }, 2000); 
         }
 
-        // --- ЛОГІКА ВИЗНАЧЕННЯ РЕЖИМУ ТА ДІЇ ---
+        // --- ЛОГІКА ПЕРЕХОДУ (ВИКОНУЄТЬСЯ У TWA) ---
 
         const urlParams = new URLSearchParams(window.location.search);
         
-        // Режим 1: Ми у Зовнішньому Браузері (Chrome/Safari)
+        // Режим 1: Ми у Зовнішньому Браузері (Chrome/Safari) - запускаємо завантаження
         if (urlParams.get('dl') === 'true') {
-            // Одразу запускаємо завантаження
             downloadBtn.textContent = 'Завантаження...';
             downloadBtn.disabled = true;
             
-            // Запускаємо функцію завантаження
+            // Запускаємо завантаження data.txt
             triggerDownload('123', 'data.txt');
 
         } 
-        // Режим 2: Ми у Web App Telegram (TWA)
+        // Режим 2: Ми у Web App Telegram - ініціюємо перехід
         else {
             downloadBtn.addEventListener('click', () => {
                 
-                // URL для зовнішнього браузера (цей же сайт, але з параметром 'dl=true')
                 const currentUrl = window.location.href;
                 const externalUrl = currentUrl.includes('?') ? currentUrl + '&dl=true' : currentUrl + '?dl=true';
 
                 downloadBtn.disabled = true;
                 downloadBtn.textContent = 'Перехід у браузер...';
                 
-                // --- НАЙСИЛЬНІШИЙ МЕХАНІЗМ ПЕРЕХОДУ ---
+                // --- НАЙСИЛЬНІШИЙ МЕХАНІЗМ ПЕРЕХОДУ (Intent URI для Android) ---
                 
                 const isAndroid = /Android/i.test(navigator.userAgent);
 
                 if (isAndroid) {
-                    // Android Intent URI для прямого відкриття у Chrome
+                    // Це має змусити Android відкрити Chrome
                     const androidIntent = `intent://${window.location.host}${window.location.pathname}?dl=true#Intent;scheme=https;package=com.android.chrome;end`;
                     window.location.href = androidIntent;
                 } else {
@@ -110,7 +109,7 @@
                     window.location.href = externalUrl;
                 }
 
-                // Використовуємо WebApp API як резерв на випадок блокування
+                // Резервна спроба через Telegram API
                 setTimeout(() => {
                     if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
                         window.Telegram.WebApp.openLink(externalUrl);
