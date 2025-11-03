@@ -88,12 +88,12 @@
         <div class="card">
             <h1>Завантажувач MCAddon</h1>
             <p id="infoText" style="color: #555; font-size: 14px; margin-bottom: 20px;">
-                Натисніть кнопку, щоб перейти у зовнішній браузер для завантаження.
+                Натисніть кнопку, щоб почати перенаправлення.
             </p>
             <div id="instruction">
                 ⚠️ **УВАГА!** Якщо не відкрилося автоматично, натисніть на **три крапки (⋮)** і виберіть "Відкрити у браузері"!
             </div>
-            <button id="downloadBtn">Перейти та Завантажити</button>
+            <button id="downloadBtn">Перейти до завантаження</button>
         </div>
     </div>
 
@@ -104,7 +104,6 @@
         const infoText = document.getElementById('infoText');
         const instructionDiv = document.getElementById('instruction');
 
-        // Функція для генерації випадкового тексту
         function generateRandomText(length) {
             let result = '';
             const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-= ';
@@ -120,7 +119,6 @@
          */
         async function initiateExternalDownload() {
             try {
-                // ... (Логіка генерації файлу залишається без змін) ...
                 const zip = new JSZip();
                 const testFolder = zip.folder('test');
                 const randomContent = generateRandomText(3000);
@@ -136,7 +134,6 @@
                 a.href = url;
                 a.download = 'my_addon.mcaddon'; 
                 
-                // Оновлюємо інтерфейс для користувача
                 downloadBtn.style.display = 'block';
                 downloadBtn.textContent = 'Файл завантажується...';
                 downloadBtn.disabled = true;
@@ -150,9 +147,9 @@
                 
                 // !!! ФІНАЛЬНИЙ КРОК: Повернення у Telegram !!!
                 setTimeout(() => {
-                    // Використовуємо deep link для повернення
+                    // Використовуємо спеціальний deep link для повернення
                     window.location.href = 'tg://resolve?domain='; 
-                }, 2000); 
+                }, 2000); // Даємо більше часу на обробку завантаження
 
             } catch (error) {
                 console.error("Помилка під час створення файлу:", error);
@@ -165,7 +162,7 @@
         // 1. Перевірка, чи ми вже у зовнішньому браузері
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('external') === 'true') {
-            // Ми у зовнішньому браузері - запускаємо генерацію і завантаження
+            // Ми у зовнішньому браузері
             downloadBtn.style.display = 'none';
             instructionDiv.style.display = 'none';
             infoText.style.fontSize = '18px';
@@ -174,39 +171,47 @@
             initiateExternalDownload();
 
         } else {
-            // 2. Ми у Web App Telegram - налаштовуємо прямий перехід
+            // 2. Ми у Web App Telegram - налаштовуємо посилений перехід
             downloadBtn.addEventListener('click', () => {
                 
-                // URL для зовнішнього браузера
+                // URL, який буде відкриватися у зовнішньому браузері
                 const currentUrl = window.location.href;
                 const externalUrl = currentUrl.includes('?') ? currentUrl + '&external=true' : currentUrl + '?external=true';
 
                 downloadBtn.disabled = true;
-                downloadBtn.textContent = 'Спроба переходу...';
+                downloadBtn.textContent = 'Спроба відкрити у зовнішньому браузері...';
                 instructionDiv.style.display = 'block'; 
                 
-                // --- ПРЯМИЙ І АГРЕСИВНИЙ МЕХАНІЗМ ПЕРЕХОДУ ---
+                // --- ПОСИЛЕНІ МЕТОДИ ПЕРЕХОДУ НА ЗОВНІШНІЙ БРАУЗЕР ---
                 
+                // 1. Спроба Android Intent URI (найсильніший спосіб для Android)
+                const androidIntent = `intent://${window.location.host}${window.location.pathname}?external=true#Intent;scheme=https;package=com.android.chrome;end`;
+                
+                // 2. Використання прямого location.href (як резерв і для iOS)
+                const simpleRedirect = externalUrl;
+
+                // Визначаємо, яка ОС
                 const isAndroid = /Android/i.test(navigator.userAgent);
                 const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
                 if (isAndroid) {
-                    // Intent URI (найкращий шанс обійти TWA на Android)
-                    const androidIntent = `intent://${window.location.host}${window.location.pathname}?external=true#Intent;scheme=https;package=com.android.chrome;end`;
+                    // На Android спробуємо Intent URI, який повинен викликати Chrome
                     window.location.href = androidIntent;
-                } else {
-                    // Прямий redirect для iOS/інших (часто викликає системний запит)
-                    window.location.href = externalUrl;
-                }
-
-                // Використовуємо WebApp API як резервну копію, якщо перша спроба блокується
-                setTimeout(() => {
+                } else if (isIos) {
+                    // На iOS спробуємо відкрити через спеціальний Telegram API, який може бути проігнорований, 
+                    // але в поєднанні з наступним redirect спрацьовує краще.
                     if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
-                        window.Telegram.WebApp.openLink(externalUrl);
+                        window.Telegram.WebApp.openLink(simpleRedirect);
+                    } else {
+                        window.location.href = simpleRedirect;
                     }
-                }, 500);
+                } else {
+                    // Для інших (десктоп, тощо) - звичайний redirect
+                    window.location.href = simpleRedirect;
+                }
                 
-                infoText.textContent = 'Перенаправлення ініційовано. Будь ласка, оберіть "Відкрити у браузері".';
+                // Навіть після всіх спроб, даємо користувачеві інструкцію
+                infoText.textContent = 'Будь ласка, оберіть "Відкрити у браузері", якщо з’явиться запит.';
             });
         }
     </script>
