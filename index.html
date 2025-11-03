@@ -25,8 +25,8 @@
             font-weight: bold;
         }
         #downloadBtn {
-            /* НОВИЙ КОЛІР: Помаранчевий */
-            background-color: #fd7e14; 
+            /* НОВИЙ КОЛІР: Синій */
+            background-color: #007bff; 
             color: white; border: none; padding: 20px 40px; font-size: 20px;
             font-weight: bold; border-radius: 10px; cursor: pointer;
             width: 90%; max-width: 300px; transition: background-color 0.3s;
@@ -69,11 +69,11 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            // !!! ЗМІНЕНО !!!
-            // Замість 'tg://' ми повертаємо на головну сторінку сайту.
-            // Telegram перехопить це і відкриє TWA з кроку 1.
+            // !!! ЗМІНА ЗРОБЛЕНА ТУТ !!!
+            // Використовуємо deep link для гарантованого повернення в Telegram.
+            // Telegram повинен скинути TWA до початкового стану (Крок 1).
             setTimeout(() => {
-                window.location.href = window.location.origin + window.location.pathname;
+                window.location.href = 'tg://resolve?domain=';
             }, 2000); 
         }
 
@@ -96,7 +96,7 @@
             }
         }
 
-        // --- ЛОГІКА КРОКІВ (Залишилася без змін) ---
+        // --- ЛОГІКА КРОКІВ ---
 
         // КРОК 3: Ми у Chrome. Завантажуємо файл.
         if (step === '3') {
