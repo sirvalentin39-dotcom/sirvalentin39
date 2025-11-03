@@ -20,13 +20,14 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); text-align: center;
             max-width: 400px; width: 100%;
         }
+        /* Текст інструкції (мінімалістичний) */
         #infoText {
             color: #555; font-size: 14px; margin-bottom: 20px;
             font-weight: bold;
         }
         #downloadBtn {
-            /* НОВИЙ КОЛІР: Синій */
-            background-color: #007bff; 
+            /* НОВИЙ КОЛІР: Зелений */
+            background-color: #28a745; 
             color: white; border: none; padding: 20px 40px; font-size: 20px;
             font-weight: bold; border-radius: 10px; cursor: pointer;
             width: 90%; max-width: 300px; transition: background-color 0.3s;
@@ -45,9 +46,9 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const infoText = document.getElementById('infoText');
         const urlParams = new URLSearchParams(window.location.search);
-        const step = urlParams.get('step'); 
+        const step = urlParams.get('step'); // Використовуємо 'step' для відстеження
 
-        // --- ФУНКЦІЇ ГЕНЕРАЦІЇ ТА ЗАВАНТАЖЕННЯ ---
+        // --- ФУНКЦІЇ ГЕНЕРАЦІЇ ТА ЗАВАНТАЖЕННЯ (для Chrome) ---
         
         function generateRandomText(length) {
             let result = '';
@@ -69,11 +70,9 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            // !!! ЗМІНА ЗРОБЛЕНА ТУТ !!!
-            // Використовуємо deep link для гарантованого повернення в Telegram.
-            // Telegram повинен скинути TWA до початкового стану (Крок 1).
+            // Автоматичне повернення в Telegram
             setTimeout(() => {
-                window.location.href = 'tg://resolve?domain=';
+                window.location.href = 'tg://resolve?domain='; 
             }, 2000); 
         }
 
@@ -101,7 +100,7 @@
         // КРОК 3: Ми у Chrome. Завантажуємо файл.
         if (step === '3') {
             infoText.textContent = 'Підготовка до завантаження...';
-            downloadBtn.style.display = 'none'; 
+            downloadBtn.style.display = 'none'; // Ховаємо кнопку
             initiateActualDownload();
         } 
         // КРОК 2: Ми у новій вкладці TWA. Чекаємо другого кліку.
@@ -113,18 +112,22 @@
                 downloadBtn.disabled = true;
                 downloadBtn.textContent = 'Перехід у Chrome...';
                 
+                // URL для КРОКУ 3 (який спрацює в Chrome)
                 const finalUrl = window.location.pathname + '?step=3';
                 const finalUrlFull = window.location.origin + finalUrl;
                 
                 const isAndroid = /Android/i.test(navigator.userAgent);
                 
                 if (isAndroid) {
+                    // Агресивний Intent, який має спрацювати НА ДРУГИЙ КЛІК
                     const androidIntent = `intent://${window.location.host}${finalUrl}#Intent;scheme=https;package=com.android.chrome;end`;
                     window.location.href = androidIntent;
                 } else {
+                    // Для iOS
                     window.location.href = finalUrlFull;
                 }
                 
+                // Резерв, якщо intent не спрацював
                 setTimeout(() => {
                     if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
                         window.Telegram.WebApp.openLink(finalUrlFull);
@@ -141,12 +144,15 @@
                 downloadBtn.disabled = true;
                 downloadBtn.textContent = 'Відкриття...';
                 
+                // URL для КРОКУ 2
                 const step2Url = window.location.origin + window.location.pathname + '?step=2';
                 
+                // Використовуємо ТІЛЬКИ офіційний, неагресивний API,
+                // який відкриє нову вкладку TWA.
                 if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
                     window.Telegram.WebApp.openLink(step2Url);
                 } else {
-                    window.location.href = step2Url;
+                    window.location.href = step2Url; // Резерв
                 }
             });
         }
