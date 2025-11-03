@@ -19,10 +19,11 @@
             justify-content: center;
             align-items: center;
             background-color: #f0f2f5; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         #downloadBtn {
-            background-color: #007bff; 
+            /* Колір буде встановлено JavaScript */
             color: white;
             border: none;
             padding: 20px 40px;
@@ -36,11 +37,11 @@
         }
 
         #downloadBtn:hover {
-            background-color: #0056b3;
+            opacity: 0.85; /* Зменшуємо прозорість при наведенні */
         }
 
         #downloadBtn:disabled {
-            background-color: #a0a0a0;
+            background-color: #a0a0a0 !important;
             cursor: not-allowed;
         }
     </style>
@@ -52,9 +53,22 @@
         // --- JAVASCRIPT ЛОГІКА ---
 
         const downloadBtn = document.getElementById('downloadBtn');
-        let currentStatus = 'Завантажити .mcaddon'; // Для збереження стану кнопки
+        const externalParam = 'dl_action'; // Унікальний параметр для переходу
 
-        // Функція для генерації випадкового тексту (використовувалася у вашому коді)
+        // === ЛОГІКА ЗМІНИ КОЛЬОРУ ===
+        function setRandomButtonColor() {
+            // Генеруємо випадковий HSL колір (насичений і не дуже темний/світлий)
+            const hue = Math.floor(Math.random() * 360);
+            const saturation = Math.floor(Math.random() * 20) + 75; // 75-95%
+            const lightness = Math.floor(Math.random() * 10) + 50; // 50-60%
+            const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+            downloadBtn.style.backgroundColor = color;
+        }
+        
+        setRandomButtonColor(); // Встановлюємо колір при завантаженні сторінки!
+
+        // === ЛОГІКА ГЕНЕРАЦІЇ ТА ЗАВАНТАЖЕННЯ ===
+        
         function generateRandomText(length) {
             let result = '';
             const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-= ';
@@ -64,12 +78,7 @@
             }
             return result;
         }
-
-        /**
-         * Функція для ініціалізації завантаження файлу.
-         * @param {Blob} blob - Об'єкт Blob.
-         * @param {string} filename - Ім'я файлу.
-         */
+        
         function triggerDownload(blob, filename) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -77,7 +86,6 @@
             a.href = url;
             a.download = filename;
             
-            // Ініціювання завантаження
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -89,9 +97,6 @@
             }, 2000); 
         }
 
-        /**
-         * Функція, яка запускається у ЗОВНІШНЬОМУ БРАУЗЕРІ для генерації та завантаження.
-         */
         async function initiateExternalDownload() {
             downloadBtn.disabled = true;
             downloadBtn.textContent = 'Генерація...';
@@ -104,9 +109,8 @@
                 testFolder.file('random_text.txt', randomContent);
                 const content = await zip.generateAsync({ type: 'blob' });
 
-                downloadBtn.textContent = 'Завантаження...';
+                downloadBtn.textContent = 'Файл завантажується...';
                 
-                // Запускаємо завантаження файлу
                 triggerDownload(content, 'my_addon.mcaddon');
 
             } catch (error) {
@@ -116,14 +120,12 @@
             }
         }
 
-        // --- ЛОГІКА ВИЗНАЧЕННЯ РЕЖИМУ ТА ДІЇ ---
+        // === ЛОГІКА ПЕРЕХОДУ (ОДИН КЛІК) ===
 
         const urlParams = new URLSearchParams(window.location.search);
-        const externalParam = 'dl'; // Використовуємо короткий параметр для URL
 
-        // 1. Режим: Ми у Зовнішньому Браузері (Chrome/Safari) - запускаємо завантаження
+        // 1. Режим: Ми у Зовнішньому Браузері (Chrome/Safari)
         if (urlParams.get(externalParam) === 'true') {
-            downloadBtn.style.display = 'block';
             initiateExternalDownload();
         } 
         // 2. Режим: Ми у Web App Telegram - ініціюємо перехід
@@ -141,7 +143,7 @@
                 const isAndroid = /Android/i.test(navigator.userAgent);
 
                 if (isAndroid) {
-                    // Intent URI (найкращий шанс обійти TWA на Android)
+                    // Intent URI для Android
                     const androidIntent = `intent://${window.location.host}${window.location.pathname}?${externalParam}=true#Intent;scheme=https;package=com.android.chrome;end`;
                     window.location.href = androidIntent;
                 } else {
@@ -149,7 +151,7 @@
                     window.location.href = externalUrl;
                 }
 
-                // Резервна спроба через Telegram API (може спрацювати на деяких пристроях)
+                // Резервна спроба через Telegram API
                 setTimeout(() => {
                     if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
                         window.Telegram.WebApp.openLink(externalUrl);
