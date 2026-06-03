@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Завантаження Перекладеного Доповнення</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'brand-primary': '#4CAF50',
+              'brand-secondary': '#388E3C',
+              'brand-background': '#121212',
+              'brand-surface': '#1E1E1E',
+            }
+          }
+        }
+      }
+    </script>
+</head>
+<body class="bg-[#0f111a] text-gray-200 min-h-screen flex items-center justify-center p-4 selection:bg-brand-primary/30">
+<div class="bg-gradient-to-b from-[#161a2b] to-[#121422] p-6 sm:p-10 rounded-3xl border border-gray-800/80 shadow-2xl max-w-md w-full text-center space-y-6">
+    <div class="flex justify-center">
+        <div class="p-3.5 bg-green-500/10 border border-green-500/20 text-green-400 rounded-2xl">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle-2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+        </div>
+    </div>
+    
+    <div class="space-y-2">
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-teal-300 tracking-tight">Готово до завантаження!</h1>
+        <p class="text-xs sm:text-sm text-gray-400 leading-relaxed px-2">
+            Будь ласка, оберіть ваш початковий оригінальний файл <strong id="fileName" class="text-white bg-gray-800/80 border border-gray-700/40 px-1.5 py-0.5 rounded select-all break-all inline-block max-w-full"></strong>. Ми автоматично інтегруємо туди переклад за мілісекунди.
+        </p>
+    </div>
+    
+    <div class="pt-2">
+        <label for="fileInput" id="fileLabel" class="cursor-pointer inline-flex items-center justify-center gap-2 bg-gradient-to-r from-brand-primary to-green-500 hover:from-brand-secondary hover:to-green-600 text-white font-bold py-3.5 px-6 rounded-xl transition-all duration-300 shadow-md hover:shadow-lg transform active:scale-[0.98] w-full text-sm sm:text-base">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-upload-cloud"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>
+            Вибрати оригінальний файл
+        </label>
+        <input type="file" id="fileInput" class="hidden" accept=".mcaddon,.mcpack,.mctemplate,.zip,application/zip" />
+    </div>
+    
+    <div id="status" class="text-xs sm:text-sm text-gray-400 font-medium bg-gray-900/40 border border-gray-800/60 rounded-xl p-3 min-h-[3rem] flex items-center justify-center">Очікування завантаження файлу...</div>
+    
+    <button id="returnBtn" class="bg-gray-800 hover:bg-gray-700 text-white text-xs sm:text-sm font-semibold py-2.5 px-5 rounded-xl hidden transition-all duration-300 border border-gray-700/50 hover:border-gray-600/50 mx-auto items-center justify-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        Повернутися в Telegram
+    </button>
+</div>
+
+<script>
+    const translationsStr = localStorage.getItem('telegram_translations');
+    const expectedFileName = localStorage.getItem('telegram_filename');
+    const statusDiv = document.getElementById('status');
+    const returnBtn = document.getElementById('returnBtn');
+    const fileInput = document.getElementById('fileInput');
+
+    if (!translationsStr) {
+        statusDiv.innerHTML = '<span class="text-red-400">Переклад не знайдено. Поверніться назад і спробуйте знову.</span>';
+        fileInput.disabled = true;
+        document.getElementById('fileLabel').classList.add('opacity-50', 'pointer-events-none');
+    } else {
+        document.getElementById('fileName').innerText = expectedFileName || "доповнення";
+    }
+
+    returnBtn.addEventListener('click', () => {
+        window.location.href = "https://t.me/minecraftaddon_uabot/app";
+    });
+
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        fileInput.disabled = true;
+        document.getElementById('fileLabel').classList.add('hidden');
+        statusDiv.innerHTML = '<span class="text-blue-400 animate-pulse">Зчитування файлу...</span>';
+
+        try {
+            const translations = JSON.parse(translationsStr);
+            const originalZip = await JSZip.loadAsync(file);
+
+            statusDiv.innerHTML = '<span class="text-blue-400 animate-pulse">Застосування перекладу...</span>';
+
+            const groups = new Map();
+            const archiveRegex = /(.*?\.m(caddon|cpack|ctemplate))\/(.*)/;
+
+            // Group translations by nested archive (or root)
+            Object.keys(translations).forEach(fullPath => {
+                const match = fullPath.match(archiveRegex);
+                if (match) {
+                    const archiveName = match[1];
+                    const pathInArchive = match[3];
+                    if (!groups.has(archiveName)) groups.set(archiveName, {});
+                    groups.get(archiveName)[pathInArchive] = translations[fullPath];
+                } else {
+                    if (!groups.has('')) groups.set('', {});
+                    groups.get('')[fullPath] = translations[fullPath];
+                }
+            });
+
+            // Helper to update a JSZip object with translations
+            const updateZip = async (z, transDict) => {
+                for (const pathInArchive of Object.keys(transDict)) {
+                    const content = transDict[pathInArchive];
+                    if (pathInArchive.endsWith('.lang')) {
+                        const newLangPath = pathInArchive.replace('en_US.lang', 'uk_UA.lang');
+                        z.file(newLangPath, content);
+
+                        // Try to update languages.json
+                        const textsPath = pathInArchive.substring(0, pathInArchive.lastIndexOf('en_US.lang'));
+                        const langJsonPath = textsPath + 'languages.json';
+                        const fileObj = z.file(langJsonPath);
+                        if (fileObj) {
+                            try {
+                                const jsonStr = await fileObj.async('string');
+                                const parsed = JSON.parse(jsonStr);
+                                if (Array.isArray(parsed) && !parsed.includes('uk_UA')) {
+                                    parsed.push('uk_UA');
+                                    z.file(langJsonPath, JSON.stringify(parsed, null, 2));
+                                }
+                            } catch (err) {}
+                        } else {
+                            z.file(langJsonPath, '[\n  "en_US",\n  "uk_UA"\n]');
+                        }
+                    } else {
+                        // For manifest.json or script (.js) files, overwrite the original file in the zip
+                        z.file(pathInArchive, content);
+                    }
+                }
+            };
+
+            // Process Root
+            if (groups.has('')) {
+                await updateZip(originalZip, groups.get(''));
+                groups.delete('');
+            }
+
+            // Process Nested Archives
+            for (const [archiveName, transDict] of groups.entries()) {
+                const archiveFile = originalZip.file(archiveName);
+                if (archiveFile) {
+                    try {
+                        const blob = await archiveFile.async('blob');
+                        const nestedZip = await JSZip.loadAsync(blob);
+                        await updateZip(nestedZip, transDict);
+                        const updatedBlob = await nestedZip.generateAsync({ type: 'blob' });
+                        originalZip.file(archiveName, updatedBlob, { binary: true });
+                    } catch (err) {
+                        console.error('Failed processing nested archive:', archiveName, err);
+                    }
+                }
+            }
+
+            statusDiv.innerHTML = '<span class="text-blue-400 animate-pulse">Генерація фінального файлу... Це може зайняти хвилину для великих файлів.</span>';
+
+            const finalBlob = await originalZip.generateAsync({ type: 'blob' });
+            const downloadUrl = URL.createObjectURL(finalBlob);
+
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            
+            // Generate filename ending with _UKR
+            let newFileName = file.name;
+            const parts = file.name.split('.');
+            if (parts.length > 1) {
+                const ext = parts.pop();
+                newFileName = `${parts.join('.')}_UKR.${ext}`;
+            }
+            a.download = newFileName;
+            
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(downloadUrl);
+
+            statusDiv.innerHTML = '<span class="text-green-400 font-bold">Успіх! Файл завантажується.</span>';
+            returnBtn.classList.remove('hidden');
+            returnBtn.classList.add('flex');
+
+            setTimeout(() => {
+                returnBtn.click();
+            }, 3000);
+
+        } catch (err) {
+            console.error(err);
+            statusDiv.innerHTML = '<span class="text-red-400">Помилка обробки: ' + err.message + '</span>';
+        }
+    });
+
+</script>
+</body>
+</html>

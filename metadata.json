@@ -1,0 +1,10 @@
+{
+  "name": "Remix: Remix: Перекладач Доповнень Minecraft",
+  "description": "Інструмент на базі штучного інтелекту для автоматичного перекладу доповнень Minecraft Bedrock (.mcaddon, .mcpack) на українську мову за допомогою Gemini API. Просто завантажте ваше доповнення, і інструмент виконає розпакування, переклад та перепакування.",
+  "requestFramePermissions": [
+    "clipboard-read"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
