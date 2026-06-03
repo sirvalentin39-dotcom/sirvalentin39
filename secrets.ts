@@ -24,7 +24,7 @@ const KEY_PART_CODE = 'e20a4f43c068e8bdc34a0295d8ff3596';
 
 // ID приватного (secret) Gist із зашифрованою конфігурацією.
 // Заповнюється під час деплою. Secret-Gist читається за ID без автентифікації.
-const GIST_ID = '__GIST_ID_PLACEHOLDER__';
+const GIST_ID = '895d2129e1f887f0dd7d0357608be933';
 
 const GIST_FILE_NAME = 'config.json';
 const CACHE_KEY = 'app_cfg_cipher_cache_v1';
